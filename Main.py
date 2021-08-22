@@ -150,6 +150,7 @@ def reconstruct_path(parent, current, draw):
 def showTextBox(x, y):
     textBox = myfont.render(textboxValue, True, BLACK)
     WIN.blit(textBox, (x, y))
+
 def clearTextBox():
     global textboxValue
     textboxValue = ""
@@ -158,7 +159,11 @@ def setup_algorithm(draw, grid, start, end):
     pass
 
 def run_algorithm(draw, grid, start, end):
+    global stepThrough
     startTime = time.perf_counter()
+    waitTime = 0.1
+    waitTimeElapsed = 0
+    endTime = 0
     setStarted(True)
     count = 0
     open_set = PriorityQueue()
@@ -172,9 +177,12 @@ def run_algorithm(draw, grid, start, end):
     open_set_hash = {start}
 
     while not open_set.empty():
-        global stepThrough
         if stepThrough:
             paused(draw)
+
+        time.sleep(waitTime)
+        waitTimeElapsed = waitTimeElapsed + waitTime
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -189,6 +197,7 @@ def run_algorithm(draw, grid, start, end):
         
         if current == end:
             endTime = time.perf_counter()
+            endTime = endTime - waitTimeElapsed
             reconstruct_path(parent, end, draw)
             start.make_start()
             end.make_end()
