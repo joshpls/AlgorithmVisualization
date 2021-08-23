@@ -5,8 +5,8 @@ import time
 from queue import PriorityQueue
 from pygame import font
 
-WIDTH = 800
-WIN = pygame.display.set_mode((WIDTH, WIDTH))
+DISPLAYWIDTH = (800)
+WIN = pygame.display.set_mode((DISPLAYWIDTH, DISPLAYWIDTH))
 pygame.display.set_caption("A* Search Algorithm Visualization")
 pygame.init()
 
@@ -20,17 +20,9 @@ PURPLE = (128, 0, 128)
 ORANGE= (255, 165, 0)
 GREY = (128, 128, 128)
 TURQUOISE = (64, 224, 208)
-ROWS = 25
+ROWS = (25)
 
 myfont = pygame.font.Font('freesansbold.ttf', 30)
-global textboxValue
-textboxValue = ""
-global started 
-started = False
-global isPaused
-isPaused = True
-global stepThrough
-stepThrough = False
 
 class Node:
     def __init__(self, row, col, width, total_rows):
@@ -102,6 +94,40 @@ class Node:
     def __lt__(self,other):
         return False
 
+class button():
+    def __init__(self, color, x,y,width,height, text=''):
+        self.color = color
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.text = text
+
+    def draw(self,win,outline=None):
+        #Call this method to draw the button on the screen
+        if outline:
+            pygame.draw.rect(win, outline, (self.x-2,self.y-2,self.width+4,self.height+4),0)
+            
+        pygame.draw.rect(win, self.color, (self.x,self.y,self.width,self.height),0)
+        
+        if self.text != '':
+            font = pygame.font.SysFont('comicsans', 60)
+            text = font.render(self.text, 1, (0,0,0))
+            win.blit(text, (self.x + (self.width/2 - text.get_width()/2), self.y + (self.height/2 - text.get_height()/2)))
+
+    def isOver(self, pos):
+        #Pos is the mouse position or a tuple of (x,y) coordinates
+        if pos[0] > self.x and pos[0] < self.x + self.width:
+            if pos[1] > self.y and pos[1] < self.y + self.height:
+                return True
+            
+        return False
+
+# Test Button
+blueButton = button(BLUE,350,750, 100, 50, "Click Me!")
+
+# Methods
+
 def getStarted():
     global started
     return started
@@ -120,7 +146,7 @@ def paused(draw):
             for event in pygame.event.get():
 
                 if event.type == pygame.QUIT:
-                    pygame.quit()
+                    pygame.QUIT
                     #setStarted(False)
                     isPaused = False
                 if event.type == pygame.KEYDOWN:
@@ -161,7 +187,7 @@ def setup_algorithm(draw, grid, start, end):
 def run_algorithm(draw, grid, start, end):
     global stepThrough
     startTime = time.perf_counter()
-    waitTime = 0.1
+    waitTime = 0.00
     waitTimeElapsed = 0
     endTime = 0
     setStarted(True)
@@ -185,7 +211,7 @@ def run_algorithm(draw, grid, start, end):
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
+                pygame.QUIT
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     stepThrough = False
@@ -245,13 +271,13 @@ def draw_grid(win, rows, width):
 
 def draw(win, grid, rows, width):
     win.fill(WHITE)
-
     for row in grid:
         for node in row:
             node.draw(win)
     
     draw_grid(win, rows, width)
     showTextBox(200, 650)
+    #blueButton.draw(win, BLACK)
     pygame.display.update()
 
 def get_clicked_pos(pos, rows, width):
@@ -263,8 +289,18 @@ def get_clicked_pos(pos, rows, width):
 
     return row, col
 
+# Main Method
 def main(win, width):
+
     grid = make_grid(ROWS, width)
+    global textboxValue
+    textboxValue = ""
+    global started 
+    started = False
+    global isPaused
+    isPaused = True
+    global stepThrough
+    stepThrough = False
 
     start = None
     end = None
@@ -280,6 +316,9 @@ def main(win, width):
                 run = False
             if pygame.mouse.get_pressed()[0]: # left
                 clearTextBox()
+                
+                if blueButton.isOver(pos):
+                    blueButton.text = "Clicked!"
                 if not start and node != end:
                     start = node
                     start.make_start()
@@ -303,9 +342,14 @@ def main(win, width):
                             node.update_neighbors(grid)
                     run_algorithm(lambda: draw(win, grid, ROWS, width), grid, start, end)
                 if event.key == pygame.K_ESCAPE:
+                    if start == None:
+                        run = False
+                        pygame.QUIT
+                    
                     start = None
                     end = None
                     grid = make_grid(ROWS, width)
-    pygame.quit()
+    pygame.QUIT
 
-main(WIN, WIDTH)
+# Run Main
+main(WIN, DISPLAYWIDTH)
