@@ -1,9 +1,8 @@
-# GUI.py
+# Program that Visualizes Pathfinding Algorithm's
 from queue import PriorityQueue
 import pygame
 import time
 pygame.init()
-
 
 class Grid:
     WHITE = (255, 255, 255)
@@ -95,14 +94,15 @@ class Grid:
         x2, y2 = p2
         return abs(x1 - x2) + abs(y1 - y2)
     
-    def reconstruct_path(self, parent, current):
+    def reconstruct_path(self, parent, current, show_steps):
         while current in parent:
             current = parent[current]
             current.make_path()
             # Draw the Path by steps
-            self.draw_grid()
+            if show_steps:
+                self.draw_grid()
 
-    def run_algorithm(self):
+    def run_algorithm(self, show_steps):
         #A* Search Algorithm
         start_node = self.start
         end_node = self.end
@@ -136,7 +136,7 @@ class Grid:
             
             if current == end_node:
                 end_node.make_end()
-                self.reconstruct_path(parent, end_node)
+                self.reconstruct_path(parent, end_node, show_steps)
                 start_node.make_start()
                 return True # Make path
             
@@ -154,7 +154,8 @@ class Grid:
                         neighbor.make_open()
             
             # Update the grid with open & closed nodes
-            self.draw_grid()
+            if show_steps:
+                self.draw_grid()
             
             if current != start_node:
                 current.make_closed()
@@ -289,20 +290,73 @@ class Button:
     def check_pressed(self):
         return self.pressed == True
 
+class Checkbox():
+    def __init__(self,text, width, height, pos, win, font, offset, checked):
+        self.win = win
+        self.font = font
+        self.text = text
+        self.width = width
+        self.height = height
+        self.pos = pos
+        self.pressed = False
+        self.checked = checked
+        self.offset = offset
+        self.text_len = len(self.text * int(self.width/2))
+        self.cb_x = pos[0]+self.text_len
+        self.cb_y = pos[1]+(offset/2)
 
-def redraw_window(win, board, time, run_button):
+        # top rectangle
+        self.top_rect = pygame.Rect((self.cb_x, self.cb_y),(width, height))
+        self.top_color = "#475F77"
+
+        # text
+        self.text_checkbox = self.font.render(self.text,True, (0,0,0))
+        self.cross_rect = pygame.Rect((self.cb_x+(offset/2), self.cb_y+(offset/2)), (width-offset, height-offset))
+    
+    def draw(self):
+        self.win.fill((255,255,255), (self.pos, (self.cb_x, self.pos[1]))) #clear the text
+        pygame.draw.rect(self.win, self.top_color, self.top_rect)
+        if self.is_checked():
+            pygame.draw.rect(self.win, (150, 150, 150), self.cross_rect)
+        self.win.blit(self.text_checkbox, (self.pos))
+        self.is_clicked()
+
+    def change_state(self):
+        if self.pressed:
+            if self.checked == False:
+                self.checked = True
+            else:
+                self.checked = False
+    
+    def is_checked(self):
+        return self.checked
+    
+    def is_clicked(self):
+        mouse_pos = pygame.mouse.get_pos()
+        if self.top_rect.collidepoint(mouse_pos):
+            if pygame.mouse.get_pressed()[0]:
+                self.pressed = True
+            else:
+                if self.pressed:
+                    self.change_state()
+                    self.pressed = False
+
+def redraw_window(win, board, time, run_button, steps_cb):
     # Draw time
     fnt = pygame.font.SysFont("cambria", 40)
     if time != None:
         win.fill((255,255,255), (600, 800, 600, 800)) #clear the text
-        text = fnt.render("Time: " + str(time), 1, (0,0,0))
-        win.blit(text, (600, 800))
+        time_text = fnt.render("Time: " + str(time), 1, (0,0,0))
+        win.blit(time_text, (600, 800))
 
     # Draw grid and board
     board.draw_grid()
 
-    # Draw Button
+    # Draw Run Button
     run_button.draw()
+
+    # Draw Checkboxes
+    steps_cb.draw()
 
 def main():
     width = 800
@@ -316,10 +370,13 @@ def main():
     start = None
     play_time = None
     font = pygame.font.SysFont("cambria", 35)
+    small_font = pygame.font.SysFont("cambria", 20)
     run_button = Button("Run Algorithm", 290, 45, (250,805),win,font)
+    steps_cb = Checkbox("Show Steps:", 20, 20, (10,805),win,small_font, 6, True)
     WHITE = (255, 255, 255)
-    win.fill(WHITE)
+    win.fill("WHITE")
     run_button_pressed = False
+    show_steps = False
 
     while run:
 
@@ -336,7 +393,7 @@ def main():
 
                 if event.key == pygame.K_SPACE:
                     start = time.perf_counter()
-                    board.run_algorithm()
+                    board.run_algorithm(show_steps)
                     play_time = round(time.perf_counter() - start, 2)
 
                 if event.key == pygame.K_RETURN:
@@ -352,18 +409,25 @@ def main():
                 boardClicked = board.click(pos)
                 if boardClicked:
                     board.select(boardClicked[0], boardClicked[1], False)
-        
+
+        # Check in Run Button is Pressed, if so run algorithm
         if run_button_pressed == False and run_button.check_pressed() == True:
             run_button_pressed = True
             start = time.perf_counter()
-            board.run_algorithm()
+            board.run_algorithm(show_steps)
             play_time = round(time.perf_counter() - start, 2)
         else:
             if run_button_pressed == True and run_button.check_pressed() == False:
                 run_button_pressed = False
         
+        # Show Steps
+        if steps_cb.is_checked():
+            show_steps = True
+        else:
+            show_steps = False
+        
         # Draw Board + Time
-        redraw_window(win, board, play_time, run_button)
+        redraw_window(win, board, play_time, run_button, steps_cb)
         pygame.display.update()
  
 main()
