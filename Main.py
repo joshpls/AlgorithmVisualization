@@ -2,7 +2,7 @@
 from queue import PriorityQueue
 import pygame
 import time
-pygame.font.init()
+pygame.init()
 
 
 class Grid:
@@ -135,9 +135,9 @@ class Grid:
             open_set_hash.remove(current)
             
             if current == end_node:
+                end_node.make_end()
                 self.reconstruct_path(parent, end_node)
                 start_node.make_start()
-                end_node.make_end()
                 return True # Make path
             
             for neighbor in current.neighbors:
@@ -255,26 +255,54 @@ class Node:
     def __lt__(self,other):
         return False
 
+class Button:
+    def __init__(self, text, width, height, pos, win, font):
+        self.win = win
+        self.font = font
+        self.pressed = False
 
-def redraw_window(win, board, time):
-    WHITE = (255, 255, 255)
+        # top rectangle
+        self.top_rect = pygame.Rect(pos,(width, height))
+        self.top_color = "#475F77"
 
-    win.fill(WHITE)
+        # text
+        self.text_surface = self.font.render(text,True,"#FFFFFF")
+        self.text_rect = self.text_surface.get_rect(center = self.top_rect.center)
+    
+    def draw(self):
+        pygame.draw.rect(self.win, self.top_color, self.top_rect, border_radius = 12)
+        self.win.blit(self.text_surface, self.text_rect)
+        self.is_clicked()
+    
+    def is_clicked(self):
+        mouse_pos = pygame.mouse.get_pos()
+        if self.top_rect.collidepoint(mouse_pos):
+            self.top_color = "#D74B4B"
+            if pygame.mouse.get_pressed()[0]:
+                self.pressed = True
+            else:
+                if self.pressed == True:
+                    self.pressed = False
+        else:
+            self.top_color = "#475F77"
+    
+    def check_pressed(self):
+        return self.pressed == True
+
+
+def redraw_window(win, board, time, run_button):
     # Draw time
-    fnt = pygame.font.SysFont("comicsans", 40)
-    text = fnt.render("Time: " + format_time(time), 1, (0,0,0))
-    win.blit(text, (800 - 140, 805))
+    fnt = pygame.font.SysFont("cambria", 40)
+    if time != None:
+        win.fill((255,255,255), (600, 800, 600, 800)) #clear the text
+        text = fnt.render("Time: " + str(time), 1, (0,0,0))
+        win.blit(text, (600, 800))
+
     # Draw grid and board
     board.draw_grid()
 
-
-def format_time(secs):
-    sec = secs%60
-    minute = secs//60
-    hour = minute//60
-
-    mat = " " + str(minute) + ":" + str(sec)
-    return mat
+    # Draw Button
+    run_button.draw()
 
 def main():
     width = 800
@@ -284,13 +312,16 @@ def main():
     win = pygame.display.set_mode((width, height))
     pygame.display.set_caption("A* Search")
     board = Grid(rows, cols, width, width, win)
-    key = None
     run = True
-    start = time.time()
-    strikes = 0
-    while run:
+    start = None
+    play_time = None
+    font = pygame.font.SysFont("cambria", 35)
+    run_button = Button("Run Algorithm", 290, 45, (250,805),win,font)
+    WHITE = (255, 255, 255)
+    win.fill(WHITE)
+    run_button_pressed = False
 
-        play_time = round(time.time() - start)
+    while run:
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -304,7 +335,9 @@ def main():
                     board.clear()
 
                 if event.key == pygame.K_SPACE:
+                    start = time.perf_counter()
                     board.run_algorithm()
+                    play_time = round(time.perf_counter() - start, 2)
 
                 if event.key == pygame.K_RETURN:
                     board.clear_algorithm()
@@ -319,8 +352,18 @@ def main():
                 boardClicked = board.click(pos)
                 if boardClicked:
                     board.select(boardClicked[0], boardClicked[1], False)
-
-        redraw_window(win, board, play_time)
+        
+        if run_button_pressed == False and run_button.check_pressed() == True:
+            run_button_pressed = True
+            start = time.perf_counter()
+            board.run_algorithm()
+            play_time = round(time.perf_counter() - start, 2)
+        else:
+            if run_button_pressed == True and run_button.check_pressed() == False:
+                run_button_pressed = False
+        
+        # Draw Board + Time
+        redraw_window(win, board, play_time, run_button)
         pygame.display.update()
  
 main()
