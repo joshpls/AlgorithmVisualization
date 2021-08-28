@@ -1,8 +1,9 @@
-# Program that Visualizes Pathfinding Algorithm's
+# Path Finding Visualizor
 from queue import PriorityQueue
 import pygame
 import time
 pygame.init()
+
 
 class Grid:
     WHITE = (255, 255, 255)
@@ -89,23 +90,60 @@ class Grid:
                     self.end = None
                 current_node.reset()
 
-    def h(self, p1, p2):
-        x1, y1 = p1
-        x2, y2 = p2
-        return abs(x1 - x2) + abs(y1 - y2)
-    
-    def reconstruct_path(self, parent, current, show_steps):
-        while current in parent:
-            current = parent[current]
-            current.make_path()
-            # Draw the Path by steps
-            if show_steps:
-                self.draw_grid()
-
-    def run_algorithm(self, show_steps):
-        #A* Search Algorithm
+    # BFS Search Algorithm
+    def BFS(self, show_steps):
         start_node = self.start
         end_node = self.end
+
+        # Update Neighbors for all nodes
+        for row in self.nodes:
+            for node in row:
+                node.update_neighbors(self.nodes)
+
+        #clear board
+        self.clear_algorithm()
+
+        parent = {}
+        open_set = []
+        open_set.append(start_node)
+
+        while len(open_set) > 0:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.QUIT
+
+            current = open_set.pop(0)
+
+            if current == end_node:
+                end_node.make_end()
+                self.reconstruct_path(parent, current, show_steps)
+                start_node.make_start()
+                return True # Make path
+            
+            for neighbor in current.neighbors:
+                if not neighbor.is_visited():
+                    parent[neighbor] = current
+                    neighbor.make_open()
+                    neighbor.make_visited()
+                    open_set.append(neighbor)
+
+                # Update the grid with open & closed nodes
+                if show_steps:
+                    self.draw_grid()
+
+                if current != start_node:
+                    current.make_closed()
+        
+        return False
+    
+    # A* Search Algorithm
+    def astar(self, show_steps):
+        start_node = self.start
+        end_node = self.end
+        
+        # Check if Start and End nodes are added
+        if start_node == None or end_node == None:
+            return False
 
         # Update Neighbors for all nodes
         for row in self.nodes:
@@ -159,8 +197,30 @@ class Grid:
             
             if current != start_node:
                 current.make_closed()
-        
+
         return False
+
+    def h(self, p1, p2):
+        x1, y1 = p1
+        x2, y2 = p2
+        return abs(x1 - x2) + abs(y1 - y2)
+    
+    def reconstruct_path(self, parent, current, show_steps):
+        while current in parent:
+            if current == self.start:
+                return True
+            current = parent[current]
+            current.make_path()
+            # Draw the Path by steps
+            if show_steps:
+                self.draw_grid()
+
+    def run_algorithm(self, value, show_steps):
+        if value == 0:
+            self.astar(show_steps)
+        elif value == 1:
+            self.BFS(show_steps)
+        
 
 class Node:
     BLACK = (0, 0, 0)
@@ -187,9 +247,13 @@ class Node:
         self.win = win
         self.start = False
         self.end = False
+        self.visited = False
 
     def get_pos(self):
         return self.row, self.col
+
+    def is_visited(self):
+        return self.visited
 
     def is_closed(self):
         return self.color == self.RED
@@ -214,7 +278,11 @@ class Node:
         self.start = False
         self.end = False
         self.wall = False
+        self.visited = False
         self.color = self.WHITE
+    
+    def make_visited(self):
+        self.visited = True
 
     def make_closed(self):
         self.color = self.RED
@@ -227,10 +295,12 @@ class Node:
     
     def make_start(self):
         self.start = True
+        self.visited = False
         self.color = self.BLUE
     
     def make_end(self):
         self.end = True
+        self.visited = False
         self.color = self.ORANGE
 
     def make_path(self):
@@ -341,7 +411,7 @@ class Checkbox():
                     self.change_state()
                     self.pressed = False
 
-def redraw_window(win, board, time, run_button, steps_cb):
+def redraw_window(win, board, time, run_button, clear_button, steps_cb, bfs_cb):
     # Draw time
     fnt = pygame.font.SysFont("cambria", 40)
     if time != None:
@@ -354,9 +424,13 @@ def redraw_window(win, board, time, run_button, steps_cb):
 
     # Draw Run Button
     run_button.draw()
+    
+    # Clear Button
+    clear_button.draw()
 
     # Draw Checkboxes
     steps_cb.draw()
+    bfs_cb.draw()
 
 def main():
     width = 800
@@ -372,11 +446,14 @@ def main():
     font = pygame.font.SysFont("cambria", 35)
     small_font = pygame.font.SysFont("cambria", 20)
     run_button = Button("Run Algorithm", 290, 45, (250,805),win,font)
+    clear_button = Button("Clear All", 120, 25, (325,855),win,small_font)
     steps_cb = Checkbox("Show Steps:", 20, 20, (10,805),win,small_font, 6, True)
+    bfs_cb = Checkbox("BFS:", 20, 20, (10,825),win,small_font, 6, False)
     WHITE = (255, 255, 255)
     win.fill("WHITE")
     run_button_pressed = False
     show_steps = False
+    algorithm = 0
 
     while run:
 
@@ -393,7 +470,7 @@ def main():
 
                 if event.key == pygame.K_SPACE:
                     start = time.perf_counter()
-                    board.run_algorithm(show_steps)
+                    board.run_algorithm(algorithm, show_steps)
                     play_time = round(time.perf_counter() - start, 2)
 
                 if event.key == pygame.K_RETURN:
@@ -414,11 +491,15 @@ def main():
         if run_button_pressed == False and run_button.check_pressed() == True:
             run_button_pressed = True
             start = time.perf_counter()
-            board.run_algorithm(show_steps)
+            board.run_algorithm(algorithm, show_steps)
             play_time = round(time.perf_counter() - start, 2)
         else:
             if run_button_pressed == True and run_button.check_pressed() == False:
                 run_button_pressed = False
+        
+        # Clear Board
+        if clear_button.check_pressed() == True:
+            board.clear()
         
         # Show Steps
         if steps_cb.is_checked():
@@ -426,8 +507,14 @@ def main():
         else:
             show_steps = False
         
+        # Show Steps
+        if bfs_cb.is_checked():
+            algorithm = 1
+        else:
+            algorithm = 0
+        
         # Draw Board + Time
-        redraw_window(win, board, play_time, run_button, steps_cb)
+        redraw_window(win, board, play_time, run_button,clear_button, steps_cb, bfs_cb)
         pygame.display.update()
  
 main()
