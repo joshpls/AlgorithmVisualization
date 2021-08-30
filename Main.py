@@ -2,6 +2,7 @@
 from queue import PriorityQueue
 import pygame
 import time
+import Gui
 pygame.init()
 
 
@@ -90,19 +91,9 @@ class Grid:
                     self.end = None
                 current_node.reset()
 
-    # BFS Search Algorithm
-    def BFS(self, show_steps):
-        start_node = self.start
+    # BFS Search Algorithm - Unweighted and gaurentee's the shortest path
+    def bfs(self, start_node, show_steps):
         end_node = self.end
-
-        # Update Neighbors for all nodes
-        for row in self.nodes:
-            for node in row:
-                node.update_neighbors(self.nodes)
-
-        #clear board
-        self.clear_algorithm()
-
         parent = {}
         open_set = []
         open_set.append(start_node)
@@ -115,16 +106,15 @@ class Grid:
             current = open_set.pop(0)
 
             if current == end_node:
-                end_node.make_end()
                 self.reconstruct_path(parent, current, show_steps)
-                start_node.make_start()
                 return True # Make path
             
             for neighbor in current.neighbors:
                 if not neighbor.is_visited():
                     parent[neighbor] = current
-                    neighbor.make_open()
-                    neighbor.make_visited()
+                    if neighbor.is_end() == False and neighbor.is_start() == False:
+                        neighbor.make_open()
+                        neighbor.make_visited()
                     open_set.append(neighbor)
 
                 # Update the grid with open & closed nodes
@@ -135,24 +125,41 @@ class Grid:
                     current.make_closed()
         
         return False
-    
-    # A* Search Algorithm
-    def astar(self, show_steps):
-        start_node = self.start
-        end_node = self.end
+
+    # DFS Search Algorithm - Weighted and does not gaurentee shortest path
+    def dfs(self, start_node, show_steps):
+        stack = []
+        parent = {}
+        stack.append(start_node)
+        #current = start_node
+
+        while len(stack) > 0:
+            current = stack.pop()
+
+            if current.is_visited() == False:
+                if current == self.end:
+                    self.reconstruct_path(parent, current, show_steps)
+                    return True
+
+                if current.is_start() == False:
+                    current.make_closed()
+                    current.make_visited()
+
+                for neighbor in current.neighbors:
+                    if neighbor.is_visited() == False:
+                        parent[neighbor] = current
+                        stack.append(neighbor)
+                        if neighbor.is_end() == False and neighbor.is_start() == False:
+                            neighbor.make_open()
+                    
+                    # Update the grid with open & closed nodes
+                    if show_steps:
+                        self.draw_grid()
         
-        # Check if Start and End nodes are added
-        if start_node == None or end_node == None:
-            return False
-
-        # Update Neighbors for all nodes
-        for row in self.nodes:
-            for node in row:
-                node.update_neighbors(self.nodes)
-
-        #clear board
-        self.clear_algorithm()
-
+        return False
+    
+    # A* Search Algorithm - Weigthed and gaurentee's the shortest path
+    def astar(self, start_node, end_node, show_steps):
         count = 0
         open_set = PriorityQueue()
         open_set.put((0, count, start_node))
@@ -175,7 +182,6 @@ class Grid:
             if current == end_node:
                 end_node.make_end()
                 self.reconstruct_path(parent, end_node, show_steps)
-                start_node.make_start()
                 return True # Make path
             
             for neighbor in current.neighbors:
@@ -204,22 +210,45 @@ class Grid:
         x1, y1 = p1
         x2, y2 = p2
         return abs(x1 - x2) + abs(y1 - y2)
-    
+
     def reconstruct_path(self, parent, current, show_steps):
         while current in parent:
+            current = parent[current]
             if current == self.start:
                 return True
-            current = parent[current]
             current.make_path()
             # Draw the Path by steps
             if show_steps:
                 self.draw_grid()
 
     def run_algorithm(self, value, show_steps):
+        # Check if Algorithm is selected
+        if value < 0:
+            return False
+
+        start_node = self.start
+        end_node = self.end
+
+        # Check if Start and End nodes are added
+        if start_node == None or end_node == None:
+            return False
+
+        # Update Neighbors for all nodes
+        for row in self.nodes:
+            for node in row:
+                node.update_neighbors(self.nodes)
+
+        #clear board
+        self.clear_algorithm()
+
         if value == 0:
-            self.astar(show_steps)
+            self.astar(start_node, end_node, show_steps)
         elif value == 1:
-            self.BFS(show_steps)
+            self.bfs(start_node, show_steps)
+        elif value == 2:
+            self.dfs(start_node, show_steps)
+        else:
+            pass #Greedy Best First Search
         
 
 class Node:
@@ -326,94 +355,9 @@ class Node:
     def __lt__(self,other):
         return False
 
-class Button:
-    def __init__(self, text, width, height, pos, win, font):
-        self.win = win
-        self.font = font
-        self.pressed = False
-
-        # top rectangle
-        self.top_rect = pygame.Rect(pos,(width, height))
-        self.top_color = "#475F77"
-
-        # text
-        self.text_surface = self.font.render(text,True,"#FFFFFF")
-        self.text_rect = self.text_surface.get_rect(center = self.top_rect.center)
-    
-    def draw(self):
-        pygame.draw.rect(self.win, self.top_color, self.top_rect, border_radius = 12)
-        self.win.blit(self.text_surface, self.text_rect)
-        self.is_clicked()
-    
-    def is_clicked(self):
-        mouse_pos = pygame.mouse.get_pos()
-        if self.top_rect.collidepoint(mouse_pos):
-            self.top_color = "#D74B4B"
-            if pygame.mouse.get_pressed()[0]:
-                self.pressed = True
-            else:
-                if self.pressed == True:
-                    self.pressed = False
-        else:
-            self.top_color = "#475F77"
-    
-    def check_pressed(self):
-        return self.pressed == True
-
-class Checkbox():
-    def __init__(self,text, width, height, pos, win, font, offset, checked):
-        self.win = win
-        self.font = font
-        self.text = text
-        self.width = width
-        self.height = height
-        self.pos = pos
-        self.pressed = False
-        self.checked = checked
-        self.offset = offset
-        self.text_len = len(self.text * int(self.width/2))
-        self.cb_x = pos[0]+self.text_len
-        self.cb_y = pos[1]+(offset/2)
-
-        # top rectangle
-        self.top_rect = pygame.Rect((self.cb_x, self.cb_y),(width, height))
-        self.top_color = "#475F77"
-
-        # text
-        self.text_checkbox = self.font.render(self.text,True, (0,0,0))
-        self.cross_rect = pygame.Rect((self.cb_x+(offset/2), self.cb_y+(offset/2)), (width-offset, height-offset))
-    
-    def draw(self):
-        self.win.fill((255,255,255), (self.pos, (self.cb_x, self.pos[1]))) #clear the text
-        pygame.draw.rect(self.win, self.top_color, self.top_rect)
-        if self.is_checked():
-            pygame.draw.rect(self.win, (150, 150, 150), self.cross_rect)
-        self.win.blit(self.text_checkbox, (self.pos))
-        self.is_clicked()
-
-    def change_state(self):
-        if self.pressed:
-            if self.checked == False:
-                self.checked = True
-            else:
-                self.checked = False
-    
-    def is_checked(self):
-        return self.checked
-    
-    def is_clicked(self):
-        mouse_pos = pygame.mouse.get_pos()
-        if self.top_rect.collidepoint(mouse_pos):
-            if pygame.mouse.get_pressed()[0]:
-                self.pressed = True
-            else:
-                if self.pressed:
-                    self.change_state()
-                    self.pressed = False
-
-def redraw_window(win, board, time, run_button, clear_button, steps_cb, bfs_cb):
+def redraw_window(win, board, time, run_button, clear_button, steps_cb):
     # Draw time
-    fnt = pygame.font.SysFont("cambria", 40)
+    fnt = pygame.font.SysFont("cambria", 35)
     if time != None:
         win.fill((255,255,255), (600, 800, 600, 800)) #clear the text
         time_text = fnt.render("Time: " + str(time), 1, (0,0,0))
@@ -430,7 +374,6 @@ def redraw_window(win, board, time, run_button, clear_button, steps_cb, bfs_cb):
 
     # Draw Checkboxes
     steps_cb.draw()
-    bfs_cb.draw()
 
 def main():
     width = 800
@@ -445,19 +388,27 @@ def main():
     play_time = None
     font = pygame.font.SysFont("cambria", 35)
     small_font = pygame.font.SysFont("cambria", 20)
-    run_button = Button("Run Algorithm", 290, 45, (250,805),win,font)
-    clear_button = Button("Clear All", 120, 25, (325,855),win,small_font)
-    steps_cb = Checkbox("Show Steps:", 20, 20, (10,805),win,small_font, 6, True)
-    bfs_cb = Checkbox("BFS:", 20, 20, (10,825),win,small_font, 6, False)
+    tiny_font = pygame.font.SysFont("cambria", 17)
+    run_button = Gui.Button("Run Algorithm", 290, 45, (250,805),win,font)
+    clear_button = Gui.Button("Clear All", 120, 25, (325,855),win,small_font)
+    steps_cb = Gui.Checkbox("Steps:", 18, 18, (145,808),win,tiny_font, 6, True)
     WHITE = (255, 255, 255)
+    list1 = Gui.DropDown(
+        [(WHITE), (0,50,255)],
+        [(WHITE), (0,50,255)],
+        0, 810, 130, 17, 
+        tiny_font,
+        "Select Algorithm", ["A* Search", "Breadth First", "Depth First", "Greedy-Best"])
+
     win.fill("WHITE")
     run_button_pressed = False
     show_steps = False
-    algorithm = 0
+    algorithm = -1
 
     while run:
-
-        for event in pygame.event.get():
+        
+        event_list = pygame.event.get()
+        for event in event_list:
             if event.type == pygame.QUIT:
                 run = False
             if event.type == pygame.KEYDOWN:
@@ -487,6 +438,11 @@ def main():
                 if boardClicked:
                     board.select(boardClicked[0], boardClicked[1], False)
 
+        selected_option = list1.update(event_list)
+        if selected_option >= 0:
+            list1.main = list1.options[selected_option]
+            algorithm = selected_option
+
         # Check in Run Button is Pressed, if so run algorithm
         if run_button_pressed == False and run_button.check_pressed() == True:
             run_button_pressed = True
@@ -506,15 +462,12 @@ def main():
             show_steps = True
         else:
             show_steps = False
-        
-        # Show Steps
-        if bfs_cb.is_checked():
-            algorithm = 1
-        else:
-            algorithm = 0
+
+        win.fill(WHITE, ((0, 810), (130, 300)))
+        list1.draw(win)
         
         # Draw Board + Time
-        redraw_window(win, board, play_time, run_button,clear_button, steps_cb, bfs_cb)
+        redraw_window(win, board, play_time, run_button,clear_button, steps_cb)
         pygame.display.update()
  
 main()
