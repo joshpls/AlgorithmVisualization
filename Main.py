@@ -1,5 +1,5 @@
 # Path Finding Visualizor
-from queue import PriorityQueue
+from queue import PriorityQueue, Queue
 import pygame
 import time
 import Gui
@@ -94,10 +94,11 @@ class Grid:
     # BFS Search Algorithm - Unweighted and gaurentee's the shortest path
     def bfs(self, start_node, show_steps):
         parent = {}
-        stack = []
-        stack.append(start_node)
+        queue = Queue(len(self.nodes))
+        queue.put(start_node)
 
-        while len(stack) > 0:
+        # Loop through while queue is not empty
+        while queue.qsize() > 0:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.QUIT
@@ -106,8 +107,8 @@ class Grid:
                         self.clear_algorithm()
                         return False
             
-            # Set current node to the last added to the stack - LIFO
-            current = stack.pop(0)
+            # Set current node to the end of the queue - FIFO
+            current = queue.get()
 
             if current.is_end():
                 # Found the end - Reconstruct the Path
@@ -121,7 +122,7 @@ class Grid:
                         # Mark neighbor node open and visited
                         neighbor.make_open()
                         neighbor.make_visited()
-                    stack.append(neighbor)
+                    queue.put_nowait(neighbor)
 
                 # Update the grid with open & closed nodes
                 if show_steps:
