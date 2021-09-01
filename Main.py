@@ -93,7 +93,6 @@ class Grid:
 
     # BFS Search Algorithm - Unweighted and gaurentee's the shortest path
     def bfs(self, start_node, show_steps):
-        end_node = self.end
         parent = {}
         open_set = []
         open_set.append(start_node)
@@ -105,14 +104,14 @@ class Grid:
 
             current = open_set.pop(0)
 
-            if current == end_node:
+            if current.is_end():
                 self.reconstruct_path(parent, current, show_steps)
                 return True # Make path
             
             for neighbor in current.neighbors:
                 if not neighbor.is_visited():
                     parent[neighbor] = current
-                    if neighbor.is_end() == False and neighbor.is_start() == False:
+                    if not neighbor.is_end() and not neighbor.is_start():
                         neighbor.make_open()
                         neighbor.make_visited()
                     open_set.append(neighbor)
@@ -136,20 +135,20 @@ class Grid:
         while len(stack) > 0:
             current = stack.pop()
 
-            if current.is_visited() == False:
-                if current == self.end:
+            if not current.is_visited():
+                if current.is_end():
                     self.reconstruct_path(parent, current, show_steps)
                     return True
 
-                if current.is_start() == False:
+                if not current.is_start():
                     current.make_closed()
                     current.make_visited()
 
                 for neighbor in current.neighbors:
-                    if neighbor.is_visited() == False:
+                    if not neighbor.is_visited():
                         parent[neighbor] = current
                         stack.append(neighbor)
-                        if neighbor.is_end() == False and neighbor.is_start() == False:
+                        if not neighbor.is_end() and not neighbor.is_start():
                             neighbor.make_open()
                     
                     # Update the grid with open & closed nodes
@@ -179,8 +178,7 @@ class Grid:
             current = open_set.get()[2]
             open_set_hash.remove(current)
             
-            if current == end_node:
-                end_node.make_end()
+            if current.is_end():
                 self.reconstruct_path(parent, end_node, show_steps)
                 return True # Make path
             
@@ -195,7 +193,8 @@ class Grid:
                         count += 1
                         open_set.put((f_score[neighbor], count, neighbor))
                         open_set_hash.add(neighbor)
-                        neighbor.make_open()
+                        if not neighbor.is_end():
+                            neighbor.make_open()
             
             # Update the grid with open & closed nodes
             if show_steps:
@@ -203,6 +202,44 @@ class Grid:
             
             if current != start_node:
                 current.make_closed()
+
+        return False
+
+    # Greedy - Best First Search Algorithm - Weighted and does not gaurentee shortest path
+    def greedy(self, start_node, end_node, show_steps):
+        count = 0
+        open_set = PriorityQueue()
+        open_set.put((0, count, start_node))
+        parent = {}
+        f_score = {node: float("inf") for row in self.nodes for node in row}
+        f_score[start_node] = self.h(start_node.get_pos(), end_node.get_pos())
+
+        while not open_set.empty():
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.QUIT
+
+            current = open_set.get()[2]
+            
+            if current.is_end():
+                self.reconstruct_path(parent, end_node, show_steps)
+                return True # Make path
+
+            if current != start_node:
+                current.make_closed()
+
+            for neighbor in current.neighbors:
+                if not neighbor.is_closed() and not neighbor.is_open():
+                    f_score[neighbor] = self.h(neighbor.get_pos(), end_node.get_pos())
+                    parent[neighbor] = current
+                    count += 1
+                    open_set.put((f_score[neighbor], count, neighbor))
+                    if not neighbor.is_end() and not neighbor.is_start():
+                        neighbor.make_open()
+        
+            # Update the grid with open & closed nodes
+            if show_steps:
+                self.draw_grid()
 
         return False
 
@@ -248,7 +285,7 @@ class Grid:
         elif value == 2:
             self.dfs(start_node, show_steps)
         else:
-            pass #Greedy Best First Search
+            self.greedy(start_node, end_node, show_steps) #Greedy Best First Search
         
 
 class Node:
@@ -396,9 +433,9 @@ def main():
     list1 = Gui.DropDown(
         [(WHITE), (0,50,255)],
         [(WHITE), (0,50,255)],
-        0, 810, 130, 17, 
+        5, 810, 130, 17, 
         tiny_font,
-        "Select Algorithm", ["A* Search", "Breadth First", "Depth First", "Greedy-Best"])
+        "Select Algorithm", ["A* Search", "Breadth First", "Depth First", "Greedy-BFS"])
 
     win.fill("WHITE")
     run_button_pressed = False
@@ -438,23 +475,24 @@ def main():
                 if boardClicked:
                     board.select(boardClicked[0], boardClicked[1], False)
 
+        # Get algorithm from drop down menu
         selected_option = list1.update(event_list)
         if selected_option >= 0:
             list1.main = list1.options[selected_option]
             algorithm = selected_option
 
         # Check in Run Button is Pressed, if so run algorithm
-        if run_button_pressed == False and run_button.check_pressed() == True:
+        if not run_button_pressed and run_button.check_pressed():
             run_button_pressed = True
             start = time.perf_counter()
             board.run_algorithm(algorithm, show_steps)
             play_time = round(time.perf_counter() - start, 2)
         else:
-            if run_button_pressed == True and run_button.check_pressed() == False:
+            if run_button_pressed and not run_button.check_pressed():
                 run_button_pressed = False
         
         # Clear Board
-        if clear_button.check_pressed() == True:
+        if clear_button.check_pressed():
             board.clear()
         
         # Show Steps
@@ -463,7 +501,7 @@ def main():
         else:
             show_steps = False
 
-        win.fill(WHITE, ((0, 810), (130, 300)))
+        win.fill(WHITE, ((5, 810), (130, 300)))
         list1.draw(win)
         
         # Draw Board + Time
