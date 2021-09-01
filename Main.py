@@ -94,32 +94,40 @@ class Grid:
     # BFS Search Algorithm - Unweighted and gaurentee's the shortest path
     def bfs(self, start_node, show_steps):
         parent = {}
-        open_set = []
-        open_set.append(start_node)
+        stack = []
+        stack.append(start_node)
 
-        while len(open_set) > 0:
+        while len(stack) > 0:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.QUIT
-
-            current = open_set.pop(0)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.clear_algorithm()
+                        return False
+            
+            # Set current node to the last added to the stack - LIFO
+            current = stack.pop(0)
 
             if current.is_end():
+                # Found the end - Reconstruct the Path
                 self.reconstruct_path(parent, current, show_steps)
-                return True # Make path
+                return True
             
             for neighbor in current.neighbors:
                 if not neighbor.is_visited():
                     parent[neighbor] = current
                     if not neighbor.is_end() and not neighbor.is_start():
+                        # Mark neighbor node open and visited
                         neighbor.make_open()
                         neighbor.make_visited()
-                    open_set.append(neighbor)
+                    stack.append(neighbor)
 
                 # Update the grid with open & closed nodes
                 if show_steps:
                     self.draw_grid()
 
+                # Close current node
                 if current != start_node:
                     current.make_closed()
         
@@ -130,30 +138,39 @@ class Grid:
         stack = []
         parent = {}
         stack.append(start_node)
-        #current = start_node
 
         while len(stack) > 0:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.QUIT
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.clear_algorithm()
+                        return False
+            # Set current node to the last added to the stack - LIFO
             current = stack.pop()
 
-            if not current.is_visited():
-                if current.is_end():
-                    self.reconstruct_path(parent, current, show_steps)
-                    return True
+            if current.is_end():
+                # Found the end - Reconstruct the Path
+                self.reconstruct_path(parent, current, show_steps)
+                return True
 
-                if not current.is_start():
-                    current.make_closed()
-                    current.make_visited()
+            if not current.is_start():
+                # Close and mark node as visited
+                current.make_closed()
+                current.make_visited()
 
-                for neighbor in current.neighbors:
-                    if not neighbor.is_visited():
-                        parent[neighbor] = current
-                        stack.append(neighbor)
-                        if not neighbor.is_end() and not neighbor.is_start():
-                            neighbor.make_open()
-                    
-                    # Update the grid with open & closed nodes
-                    if show_steps:
-                        self.draw_grid()
+            # Loop through all neighbors of current node (up,down,left,right)
+            for neighbor in current.neighbors:
+                if not neighbor.is_visited():
+                    parent[neighbor] = current
+                    stack.append(neighbor)
+                    if not neighbor.is_end() and not neighbor.is_start():
+                        neighbor.make_open()
+                
+                # Update the grid with open & closed nodes
+                if show_steps:
+                    self.draw_grid()
         
         return False
     
@@ -174,6 +191,10 @@ class Grid:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.QUIT
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.clear_algorithm()
+                        return False
 
             current = open_set.get()[2]
             open_set_hash.remove(current)
@@ -218,6 +239,10 @@ class Grid:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.QUIT
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.clear_algorithm()
+                        return False
 
             current = open_set.get()[2]
             
