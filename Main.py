@@ -1,5 +1,5 @@
 # Path Finding Visualizor
-from queue import PriorityQueue, Queue
+from queue import PriorityQueue
 import pygame
 import time
 import Gui
@@ -94,11 +94,11 @@ class Grid:
     # BFS Search Algorithm - Unweighted and gaurentee's the shortest path
     def bfs(self, start_node, show_steps):
         parent = {}
-        queue = Queue(len(self.nodes))
-        queue.put(start_node)
+        queue = []
+        queue.append(start_node)
 
         # Loop through while queue is not empty
-        while queue.qsize() > 0:
+        while len(queue) > 0:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.QUIT
@@ -107,8 +107,8 @@ class Grid:
                         self.clear_algorithm()
                         return False
             
-            # Set current node to the end of the queue - FIFO
-            current = queue.get()
+            # Set current node to first time inserted into the queue - FIFO
+            current = queue.pop(0)
 
             if current.is_end():
                 # Found the end - Reconstruct the Path
@@ -122,7 +122,7 @@ class Grid:
                         # Mark neighbor node open and visited
                         neighbor.make_open()
                         neighbor.make_visited()
-                    queue.put_nowait(neighbor)
+                    queue.append(neighbor)
 
                 # Update the grid with open & closed nodes
                 if show_steps:
@@ -284,7 +284,7 @@ class Grid:
             if show_steps:
                 self.draw_grid()
 
-    def run_algorithm(self, value, show_steps):
+    def run_algorithm(self, value, show_steps, diagonal):
         # Check if Algorithm is selected
         if value < 0:
             return False
@@ -299,7 +299,7 @@ class Grid:
         # Update Neighbors for all nodes
         for row in self.nodes:
             for node in row:
-                node.update_neighbors(self.nodes)
+                node.update_neighbors(self.nodes, diagonal)
 
         #clear board
         self.clear_algorithm()
@@ -401,24 +401,37 @@ class Node:
     def draw(self):
         pygame.draw.rect(self.win, self.color, (self.x, self.y, self.width, self.width))
     
-    def update_neighbors(self, nodes):
+    def update_neighbors(self, nodes, diagonal):
         self.neighbors = []
+        if self.row > 0 and not nodes[self.row - 1][self.col].is_wall(): # Up
+            self.neighbors.append(nodes[self.row - 1][self.col])  
+
         if self.row < self.total_rows - 1 and not nodes[self.row + 1][self.col].is_wall(): # Down
             self.neighbors.append(nodes[self.row + 1][self.col])
-
-        if self.row > 0 and not nodes[self.row - 1][self.col].is_wall(): # Up
-                self.neighbors.append(nodes[self.row - 1][self.col])        
         
-        if self.col < self.total_rows - 1 and not nodes[self.row][self.col + 1].is_wall(): # Left
+        if self.col < self.total_rows - 1 and not nodes[self.row][self.col + 1].is_wall(): # Right
                 self.neighbors.append(nodes[self.row][self.col + 1])
         
-        if self.col > 0 and not nodes[self.row][self.col - 1].is_wall(): # Right
+        if self.col > 0 and not nodes[self.row][self.col - 1].is_wall(): # Left
                 self.neighbors.append(nodes[self.row][self.col - 1])
+
+        if diagonal:
+            if self.row > 0 and self.col > 0 and not nodes[self.row - 1][self.col - 1].is_wall(): # Up-left
+                self.neighbors.append(nodes[self.row - 1][self.col - 1])
+
+            if self.row > 0 and self.col < self.total_rows - 1 and not nodes[self.row - 1][self.col + 1].is_wall(): # Up-Right
+                self.neighbors.append(nodes[self.row - 1][self.col + 1])
+            
+            if self.row < self.total_rows - 1 and self.col < self.total_rows - 1 and not nodes[self.row + 1][self.col + 1].is_wall(): # Down-Right
+                self.neighbors.append(nodes[self.row + 1][self.col + 1])
+
+            if self.row < self.total_rows - 1 and self.col > 0 and not nodes[self.row + 1][self.col - 1].is_wall(): # Down-Left
+                self.neighbors.append(nodes[self.row + 1][self.col - 1])
 
     def __lt__(self,other):
         return False
 
-def redraw_window(win, board, time, run_button, clear_button, steps_cb):
+def redraw_window(win, board, time, run_button, clear_button, steps_cb, diagonal_cb):
     # Draw time
     fnt = pygame.font.SysFont("cambria", 35)
     if time != None:
@@ -437,6 +450,7 @@ def redraw_window(win, board, time, run_button, clear_button, steps_cb):
 
     # Draw Checkboxes
     steps_cb.draw()
+    diagonal_cb.draw()
 
 def main():
     width = 800
@@ -454,7 +468,8 @@ def main():
     tiny_font = pygame.font.SysFont("cambria", 17)
     run_button = Gui.Button("Run Algorithm", 290, 45, (250,805),win,font)
     clear_button = Gui.Button("Clear All", 120, 25, (325,855),win,small_font)
-    steps_cb = Gui.Checkbox("Steps:", 18, 18, (145,808),win,tiny_font, 6, True)
+    steps_cb = Gui.Checkbox("Steps:", 18, 18, (172,808),win,tiny_font, 6, True)
+    diagonal_cb = Gui.Checkbox("Diagonal:", 18, 18, (145,828),win,tiny_font, 6, False)
     WHITE = (255, 255, 255)
     list1 = Gui.DropDown(
         [(WHITE), (0,50,255)],
@@ -484,7 +499,7 @@ def main():
 
                 if event.key == pygame.K_SPACE:
                     start = time.perf_counter()
-                    board.run_algorithm(algorithm, show_steps)
+                    board.run_algorithm(algorithm, show_steps, diagonal_movement)
                     play_time = round(time.perf_counter() - start, 2)
 
                 if event.key == pygame.K_RETURN:
@@ -511,7 +526,7 @@ def main():
         if not run_button_pressed and run_button.check_pressed():
             run_button_pressed = True
             start = time.perf_counter()
-            board.run_algorithm(algorithm, show_steps)
+            board.run_algorithm(algorithm, show_steps, diagonal_movement)
             play_time = round(time.perf_counter() - start, 2)
         else:
             if run_button_pressed and not run_button.check_pressed():
@@ -527,11 +542,16 @@ def main():
         else:
             show_steps = False
 
+        if diagonal_cb.is_checked():
+            diagonal_movement = True
+        else:
+            diagonal_movement = False
+
         win.fill(WHITE, ((5, 810), (130, 300)))
         list1.draw(win)
         
         # Draw Board + Time
-        redraw_window(win, board, play_time, run_button,clear_button, steps_cb)
+        redraw_window(win, board, play_time, run_button,clear_button, steps_cb, diagonal_cb)
         pygame.display.update()
  
 main()
