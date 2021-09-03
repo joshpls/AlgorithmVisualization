@@ -89,6 +89,9 @@ class Grid:
                 elif current_node.is_end():
                     self.end = None
                 current_node.reset()
+    
+    def generate_maze(self):
+        pass
 
     # BFS Search Algorithm - Unweighted and gaurentee's the shortest path
     def bfs(self, start_node, show_steps):
@@ -429,7 +432,7 @@ class Node:
     def __lt__(self,other):
         return False
 
-def redraw_window(win, board, time, display_count, run_button, clear_button, steps_cb, diagonal_cb):
+def redraw_window(win, board, event_list, time, display_count, run_button, maze_button, clear_button, steps_cb, diagonal_cb):
     # Draw time
     if time != None:
         fnt = pygame.font.SysFont("cambria", 35)
@@ -438,7 +441,6 @@ def redraw_window(win, board, time, display_count, run_button, clear_button, ste
         win.blit(time_text, (600, 800))
 
     if display_count >= 0:
-        #win.fill((255,255,255), (600, 800, 600, 800)) #clear the text
         fnt = pygame.font.SysFont("cambria", 20)
         time_text = fnt.render("Path to Goal: " + str(display_count), 1, (71,95,119))
         win.blit(time_text, (615, 850))
@@ -446,15 +448,14 @@ def redraw_window(win, board, time, display_count, run_button, clear_button, ste
     # Draw grid and board
     board.draw_grid()
 
-    # Draw Run Button
-    run_button.draw()
-    
-    # Clear Button
-    clear_button.draw()
+    # Draw Buttons
+    run_button.draw(event_list)
+    maze_button.draw(event_list)
+    clear_button.draw(event_list)
 
     # Draw Checkboxes
-    steps_cb.draw()
-    diagonal_cb.draw()
+    steps_cb.draw(event_list)
+    diagonal_cb.draw(event_list)
 
 if __name__ == "__main__":
     width = 800
@@ -471,7 +472,8 @@ if __name__ == "__main__":
     small_font = pygame.font.SysFont("cambria", 20)
     tiny_font = pygame.font.SysFont("cambria", 17)
     run_button = Gui.Button("Run Algorithm", 290, 45, (250,805),win,font)
-    clear_button = Gui.Button("Clear All", 120, 25, (325,855),win,small_font)
+    maze_button = Gui.Button("Generate Maze", 180, 25, (295,855),win,small_font)
+    clear_button = Gui.Button("Clear All", 120, 25, (325,885),win,small_font)
     steps_cb = Gui.Checkbox("Steps:", 18, 18, (172,808),win,tiny_font, 6, True)
     diagonal_cb = Gui.Checkbox("Diagonal:", 18, 18, (145,828),win,tiny_font, 6, False)
     WHITE = (255, 255, 255)
@@ -483,7 +485,6 @@ if __name__ == "__main__":
         "Select Algorithm", ["A* Search", "Breadth First", "Depth First", "Greedy-BFS"])
 
     win.fill("WHITE")
-    run_button_pressed = False
     show_steps = False
     algorithm = -1
     display_count = -1
@@ -528,14 +529,14 @@ if __name__ == "__main__":
             algorithm = selected_option
 
         # Check in Run Button is Pressed, if so run algorithm
-        if not run_button_pressed and run_button.check_pressed():
-            run_button_pressed = True
+        if run_button.check_pressed():
             start = time.perf_counter()
             display_count = board.run_algorithm(algorithm, show_steps, diagonal_movement)
             play_time = round(time.perf_counter() - start, 2)
-        else:
-            if run_button_pressed and not run_button.check_pressed():
-                run_button_pressed = False
+        
+        # Generate Maze
+        if maze_button.check_pressed():
+            board.generate_maze()
         
         # Clear Board
         if clear_button.check_pressed():
@@ -556,7 +557,7 @@ if __name__ == "__main__":
         list1.draw(win)
         
         # Draw Board + Time
-        redraw_window(win, board, play_time, display_count, run_button,clear_button, steps_cb, diagonal_cb)
+        redraw_window(win, board, event_list, play_time, display_count, run_button, maze_button, clear_button, steps_cb, diagonal_cb)
         pygame.display.update()
 
 pygame.quit()
