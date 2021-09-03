@@ -3,6 +3,7 @@ from queue import PriorityQueue
 import pygame
 import time
 import Gui
+import random
 pygame.init()
 
 class Grid:
@@ -91,7 +92,65 @@ class Grid:
                 current_node.reset()
     
     def generate_maze(self):
-        pass
+        # Update Neighbors for all nodes
+        for row in self.nodes:
+            for node in row:
+                if not node.is_start() and not node.is_end():
+                    node.reset()
+                node.update_neighbors(self.nodes, False)
+
+        x = random.randint(0, (len(self.nodes)-1))
+        y = random.randint(0, (len(self.nodes)-1))
+        random_start = self.nodes[y][x]
+
+        stack = []
+        backlog = []
+        stack.append(random_start)
+
+        while len(stack) > 0:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.QUIT
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.clear_algorithm()
+                        return -1
+            # Set current node to the last added to the stack - LIFO
+            current = stack.pop()
+            current.make_visited()
+            #current.make_path()
+
+            # Loop through all neighbors of current node (up,down,left,right)
+            count = 0
+            neighbors = []
+            for neighbor in current.neighbors:
+                if not neighbor.is_visited():
+                    if not neighbor.is_end() and not neighbor.is_start():
+                        neighbors.append(neighbor)
+
+            if len(neighbors) > 0:
+                ran = random.randint(0, len(neighbors)-1)
+
+                for neighbor in neighbors:
+                    if count != ran:
+                        backlog.append(neighbor)
+                        if not neighbor.is_start() and not neighbor.is_end():
+                            neighbor.make_wall()
+                            neighbor.make_visited()
+                    else:   
+                        stack.append(neighbors[ran])
+                    count+=1
+            else:
+                if len(backlog) > 0:
+                    stack.append(backlog.pop())
+                else:
+                    return True        
+
+            # Update the grid with open & closed nodes
+            if show_steps:
+                self.draw_grid()
+        
+        return False
 
     # BFS Search Algorithm - Unweighted and gaurentee's the shortest path
     def bfs(self, start_node, show_steps):
@@ -203,9 +262,12 @@ class Grid:
             
             if current.is_end():
                 return self.reconstruct_path(parent, end_node, show_steps)
+
+            if current != start_node:
+                current.make_closed()
             
             for neighbor in current.neighbors:
-                temp_g_score = g_score[current] + 1
+                temp_g_score = g_score[current] + 2
 
                 if temp_g_score < g_score[neighbor]:
                     parent[neighbor] = current
@@ -221,9 +283,6 @@ class Grid:
             # Update the grid with open & closed nodes
             if show_steps:
                 self.draw_grid()
-            
-            if current != start_node:
-                current.make_closed()
 
         return -1
 
