@@ -105,15 +105,10 @@ class Grid:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.clear_algorithm()
-                        return False
+                        return -1
             
             # Set current node to first time inserted into the queue - FIFO
             current = queue.pop(0)
-
-            if current.is_end():
-                # Found the end - Reconstruct the Path
-                self.reconstruct_path(parent, current, show_steps)
-                return True
             
             for neighbor in current.neighbors:
                 if not neighbor.is_visited():
@@ -124,6 +119,10 @@ class Grid:
                         neighbor.make_visited()
                     queue.append(neighbor)
 
+                    if neighbor.is_end():
+                        # Found the end - Reconstruct the Path
+                        return self.reconstruct_path(parent, neighbor, show_steps)
+
                 # Update the grid with open & closed nodes
                 if show_steps:
                     self.draw_grid()
@@ -132,7 +131,7 @@ class Grid:
                 if current != start_node:
                     current.make_closed()
         
-        return False
+        return -1
 
     # DFS Search Algorithm - Weighted and does not gaurentee shortest path
     def dfs(self, start_node, show_steps):
@@ -147,14 +146,9 @@ class Grid:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.clear_algorithm()
-                        return False
+                        return -1
             # Set current node to the last added to the stack - LIFO
             current = stack.pop()
-
-            if current.is_end():
-                # Found the end - Reconstruct the Path
-                self.reconstruct_path(parent, current, show_steps)
-                return True
 
             if not current.is_start():
                 # Close and mark node as visited
@@ -166,14 +160,19 @@ class Grid:
                 if not neighbor.is_visited():
                     parent[neighbor] = current
                     stack.append(neighbor)
-                    if not neighbor.is_end() and not neighbor.is_start():
+
+                    if neighbor.is_end():
+                            # Found the end - Reconstruct the Path
+                            return self.reconstruct_path(parent, current, show_steps)
+
+                    if not neighbor.is_start():
                         neighbor.make_open()
                 
                 # Update the grid with open & closed nodes
                 if show_steps:
                     self.draw_grid()
         
-        return False
+        return -1
     
     # A* Search Algorithm - Weigthed and gaurentee's the shortest path
     def astar(self, start_node, end_node, show_steps):
@@ -195,14 +194,13 @@ class Grid:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.clear_algorithm()
-                        return False
+                        return -1
 
             current = open_set.get()[2]
             open_set_hash.remove(current)
             
             if current.is_end():
-                self.reconstruct_path(parent, end_node, show_steps)
-                return True # Make path
+                return self.reconstruct_path(parent, end_node, show_steps)
             
             for neighbor in current.neighbors:
                 temp_g_score = g_score[current] + 1
@@ -225,7 +223,7 @@ class Grid:
             if current != start_node:
                 current.make_closed()
 
-        return False
+        return -1
 
     # Greedy - Best First Search Algorithm - Weighted and does not gaurentee shortest path
     def greedy(self, start_node, end_node, show_steps):
@@ -243,13 +241,12 @@ class Grid:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.clear_algorithm()
-                        return False
+                        return -1
 
             current = open_set.get()[2]
             
             if current.is_end():
-                self.reconstruct_path(parent, end_node, show_steps)
-                return True # Make path
+                return self.reconstruct_path(parent, end_node, show_steps)
 
             if current != start_node:
                 current.make_closed()
@@ -267,7 +264,7 @@ class Grid:
             if show_steps:
                 self.draw_grid()
 
-        return False
+        return -1
 
     def h(self, p1, p2):
         x1, y1 = p1
@@ -275,11 +272,13 @@ class Grid:
         return abs(x1 - x2) + abs(y1 - y2)
 
     def reconstruct_path(self, parent, current, show_steps):
+        count = 0
         while current in parent:
             current = parent[current]
             if current == self.start:
-                return True
+                return count
             current.make_path()
+            count+=1
             # Draw the Path by steps
             if show_steps:
                 self.draw_grid()
@@ -287,14 +286,14 @@ class Grid:
     def run_algorithm(self, value, show_steps, diagonal):
         # Check if Algorithm is selected
         if value < 0:
-            return False
+            return -1
 
         start_node = self.start
         end_node = self.end
 
         # Check if Start and End nodes are added
         if start_node == None or end_node == None:
-            return False
+            return -1
 
         # Update Neighbors for all nodes
         for row in self.nodes:
@@ -305,13 +304,13 @@ class Grid:
         self.clear_algorithm()
 
         if value == 0:
-            self.astar(start_node, end_node, show_steps)
+            return self.astar(start_node, end_node, show_steps)
         elif value == 1:
-            self.bfs(start_node, show_steps)
+            return self.bfs(start_node, show_steps)
         elif value == 2:
-            self.dfs(start_node, show_steps)
+            return self.dfs(start_node, show_steps)
         else:
-            self.greedy(start_node, end_node, show_steps) #Greedy Best First Search
+            return self.greedy(start_node, end_node, show_steps) #Greedy Best First Search
         
 
 class Node:
@@ -431,13 +430,19 @@ class Node:
     def __lt__(self,other):
         return False
 
-def redraw_window(win, board, time, run_button, clear_button, steps_cb, diagonal_cb):
+def redraw_window(win, board, time, display_count, run_button, clear_button, steps_cb, diagonal_cb):
     # Draw time
-    fnt = pygame.font.SysFont("cambria", 35)
     if time != None:
+        fnt = pygame.font.SysFont("cambria", 35)
         win.fill((255,255,255), (600, 800, 600, 800)) #clear the text
         time_text = fnt.render("Time: " + str(time), 1, (0,0,0))
         win.blit(time_text, (600, 800))
+
+    if display_count >= 0:
+        #win.fill((255,255,255), (600, 800, 600, 800)) #clear the text
+        fnt = pygame.font.SysFont("cambria", 20)
+        time_text = fnt.render("Path to Goal: " + str(display_count), 1, (71,95,119))
+        win.blit(time_text, (615, 850))
 
     # Draw grid and board
     board.draw_grid()
@@ -482,6 +487,7 @@ def main():
     run_button_pressed = False
     show_steps = False
     algorithm = -1
+    display_count = -1
 
     while run:
         
@@ -499,7 +505,7 @@ def main():
 
                 if event.key == pygame.K_SPACE:
                     start = time.perf_counter()
-                    board.run_algorithm(algorithm, show_steps, diagonal_movement)
+                    display_count = board.run_algorithm(algorithm, show_steps, diagonal_movement)
                     play_time = round(time.perf_counter() - start, 2)
 
                 if event.key == pygame.K_RETURN:
@@ -526,7 +532,7 @@ def main():
         if not run_button_pressed and run_button.check_pressed():
             run_button_pressed = True
             start = time.perf_counter()
-            board.run_algorithm(algorithm, show_steps, diagonal_movement)
+            display_count = board.run_algorithm(algorithm, show_steps, diagonal_movement)
             play_time = round(time.perf_counter() - start, 2)
         else:
             if run_button_pressed and not run_button.check_pressed():
@@ -551,7 +557,7 @@ def main():
         list1.draw(win)
         
         # Draw Board + Time
-        redraw_window(win, board, play_time, run_button,clear_button, steps_cb, diagonal_cb)
+        redraw_window(win, board, play_time, display_count, run_button,clear_button, steps_cb, diagonal_cb)
         pygame.display.update()
  
 main()
