@@ -5,7 +5,6 @@ import time
 import Gui
 pygame.init()
 
-
 class Grid:
     WHITE = (255, 255, 255)
 
@@ -149,6 +148,10 @@ class Grid:
                         return -1
             # Set current node to the last added to the stack - LIFO
             current = stack.pop()
+            
+            if current.is_end():
+                # Found the end - Reconstruct the Path
+                return self.reconstruct_path(parent, current, show_steps)
 
             if not current.is_start():
                 # Close and mark node as visited
@@ -161,11 +164,7 @@ class Grid:
                     parent[neighbor] = current
                     stack.append(neighbor)
 
-                    if neighbor.is_end():
-                            # Found the end - Reconstruct the Path
-                            return self.reconstruct_path(parent, current, show_steps)
-
-                    if not neighbor.is_start():
+                    if not neighbor.is_start() and not neighbor.is_end():
                         neighbor.make_open()
                 
                 # Update the grid with open & closed nodes
@@ -457,7 +456,7 @@ def redraw_window(win, board, time, display_count, run_button, clear_button, ste
     steps_cb.draw()
     diagonal_cb.draw()
 
-def main():
+if __name__ == "__main__":
     width = 800
     height = 920
     rows = 25
@@ -559,6 +558,5 @@ def main():
         # Draw Board + Time
         redraw_window(win, board, play_time, display_count, run_button,clear_button, steps_cb, diagonal_cb)
         pygame.display.update()
- 
-main()
+
 pygame.quit()
