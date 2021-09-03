@@ -14,20 +14,20 @@ class Button:
         self.text_surface = self.font.render(text,True,"#FFFFFF")
         self.text_rect = self.text_surface.get_rect(center = self.top_rect.center)
     
-    def draw(self):
-        pygame.draw.rect(self.win, self.top_color, self.top_rect, border_radius = 12)
+    def draw(self, event_list):
+        pygame.draw.rect(self.win, self.top_color, self.top_rect, border_radius = 6)
         self.win.blit(self.text_surface, self.text_rect)
-        self.is_clicked()
+        self.is_clicked(event_list)
     
-    def is_clicked(self):
+    def is_clicked(self, event_list):
         mouse_pos = pygame.mouse.get_pos()
+        self.pressed = False
         if self.top_rect.collidepoint(mouse_pos):
             self.top_color = "#D74B4B"
-            if pygame.mouse.get_pressed()[0]:
-                self.pressed = True
-            else:
-                if self.pressed == True:
-                    self.pressed = False
+            for event in event_list:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if pygame.mouse.get_pressed()[0]:
+                        self.pressed = True
         else:
             self.top_color = "#475F77"
     
@@ -57,13 +57,13 @@ class Checkbox():
         self.text_checkbox = self.font.render(self.text,True, (0,0,0))
         self.cross_rect = pygame.Rect((self.cb_x+(offset/2), self.cb_y+(offset/2)), (width-offset, height-offset))
     
-    def draw(self):
+    def draw(self, event_list):
         self.win.fill((255,255,255), ((self.cb_x, self.pos[1]), (self.width, self.height))) #clear the text
         pygame.draw.rect(self.win, self.top_color, self.top_rect)
         if self.is_checked():
             pygame.draw.rect(self.win, (150, 150, 150), self.cross_rect)
         self.win.blit(self.text_checkbox, (self.pos))
-        self.is_clicked()
+        self.is_clicked(event_list)
 
     def change_state(self):
         if self.pressed:
@@ -75,15 +75,16 @@ class Checkbox():
     def is_checked(self):
         return self.checked
     
-    def is_clicked(self):
+    def is_clicked(self, event_list):
         mouse_pos = pygame.mouse.get_pos()
+        self.pressed = False
         if self.top_rect.collidepoint(mouse_pos):
-            if pygame.mouse.get_pressed()[0]:
-                self.pressed = True
-            else:
-                if self.pressed:
-                    self.change_state()
-                    self.pressed = False
+            for event in event_list:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if pygame.mouse.get_pressed()[0]:
+                        self.pressed = True
+        
+        self.change_state()
 
 class DropDown():
 
