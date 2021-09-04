@@ -4,6 +4,7 @@ import pygame
 import time
 import Gui
 import random
+import math
 pygame.init()
 
 class Grid:
@@ -70,10 +71,10 @@ class Grid:
                 if node.is_empty():
                     node.reset()
                     
-    def select(self, row, col, addNode):
+    def select(self, row, col, add_node):
         current_node = self.nodes[row][col]
 
-        if addNode:
+        if add_node:
             if current_node.is_empty():
                 if not self.start:
                     current_node.make_start()
@@ -91,6 +92,7 @@ class Grid:
                     self.end = None
                 current_node.reset()
     
+    # Generate Maze from random start node
     def generate_maze(self):
         # Update Neighbors for all nodes
         for row in self.nodes:
@@ -118,7 +120,6 @@ class Grid:
             # Set current node to the last added to the stack - LIFO
             current = stack.pop()
             current.make_visited()
-            #current.make_path()
 
             # Loop through all neighbors of current node (up,down,left,right)
             count = 0
@@ -137,7 +138,7 @@ class Grid:
                         if not neighbor.is_start() and not neighbor.is_end():
                             neighbor.make_wall()
                             neighbor.make_visited()
-                    else:   
+                    else:
                         stack.append(neighbors[ran])
                     count+=1
             else:
@@ -146,7 +147,7 @@ class Grid:
                 else:
                     return True        
 
-            # Update the grid with open & closed nodes
+            # Update the grid
             if show_steps:
                 self.draw_grid()
         
@@ -234,9 +235,9 @@ class Grid:
                     self.draw_grid()
         
         return -1
-    
+     
     # A* Search Algorithm - Weigthed and gaurentee's the shortest path
-    def astar(self, start_node, end_node, show_steps):
+    def astar(self, start_node, end_node, show_steps, diagonal):
         count = 0
         open_set = PriorityQueue()
         open_set.put((0, count, start_node))
@@ -244,7 +245,7 @@ class Grid:
         g_score = {node: float("inf") for row in self.nodes for node in row}
         g_score[start_node] = 0
         f_score = {node: float("inf") for row in self.nodes for node in row}
-        f_score[start_node] = self.h(start_node.get_pos(), end_node.get_pos())
+        f_score[start_node] = self.h(start_node.get_pos(), end_node.get_pos(), diagonal)
 
         open_set_hash = {start_node}
 
@@ -267,12 +268,16 @@ class Grid:
                 current.make_closed()
             
             for neighbor in current.neighbors:
-                temp_g_score = g_score[current] + 2
+                if (diagonal):
+                    temp_g_score = g_score[current] + 1.414
+                else:
+                    temp_g_score = g_score[current] + 1
 
                 if temp_g_score < g_score[neighbor]:
                     parent[neighbor] = current
                     g_score[neighbor] = temp_g_score
-                    f_score[neighbor] = temp_g_score + self.h(neighbor.get_pos(), end_node.get_pos())
+                    f_score[neighbor] = temp_g_score + self.h(neighbor.get_pos(), end_node.get_pos(), diagonal)
+
                     if neighbor not in open_set_hash:
                         count += 1
                         open_set.put((f_score[neighbor], count, neighbor))
@@ -287,13 +292,13 @@ class Grid:
         return -1
 
     # Greedy - Best First Search Algorithm - Weighted and does not gaurentee shortest path
-    def greedy(self, start_node, end_node, show_steps):
+    def greedy(self, start_node, end_node, show_steps, diagonal):
         count = 0
         open_set = PriorityQueue()
         open_set.put((0, count, start_node))
         parent = {}
         f_score = {node: float("inf") for row in self.nodes for node in row}
-        f_score[start_node] = self.h(start_node.get_pos(), end_node.get_pos())
+        f_score[start_node] = self.h(start_node.get_pos(), end_node.get_pos(), diagonal)
 
         while not open_set.empty():
             for event in pygame.event.get():
@@ -314,7 +319,7 @@ class Grid:
 
             for neighbor in current.neighbors:
                 if not neighbor.is_closed() and not neighbor.is_open():
-                    f_score[neighbor] = self.h(neighbor.get_pos(), end_node.get_pos())
+                    f_score[neighbor] = self.h(neighbor.get_pos(), end_node.get_pos(), diagonal)
                     parent[neighbor] = current
                     count += 1
                     open_set.put((f_score[neighbor], count, neighbor))
@@ -327,10 +332,23 @@ class Grid:
 
         return -1
 
-    def h(self, p1, p2):
+    def manhattan_distance(self, p1, p2):
         x1, y1 = p1
         x2, y2 = p2
         return abs(x1 - x2) + abs(y1 - y2)
+    
+    def chebyshev(self, p1, p2):
+        y1, x1 = p1
+        y2, x2 = p2
+        dy = abs(x1-x2)
+        dx = abs(y1-y2)
+        return max(dy, dx)
+
+    def h(self, p1, p2, diagonal):
+        if diagonal:
+            return self.chebyshev(p1, p2)
+        else:
+           return self.manhattan_distance(p1, p2)
 
     def reconstruct_path(self, parent, current, show_steps):
         count = 0
@@ -365,13 +383,13 @@ class Grid:
         self.clear_algorithm()
 
         if value == 0:
-            return self.astar(start_node, end_node, show_steps)
+            return self.astar(start_node, end_node, show_steps, diagonal)
         elif value == 1:
             return self.bfs(start_node, show_steps)
         elif value == 2:
             return self.dfs(start_node, show_steps)
         else:
-            return self.greedy(start_node, end_node, show_steps) #Greedy Best First Search
+            return self.greedy(start_node, end_node, show_steps, diagonal) #Greedy Best First Search
         
 
 class Node:
