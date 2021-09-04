@@ -4,7 +4,6 @@ import pygame
 import time
 import Gui
 import random
-import math
 pygame.init()
 
 class Grid:
@@ -269,7 +268,7 @@ class Grid:
             
             for neighbor in current.neighbors:
                 if (diagonal):
-                    temp_g_score = g_score[current] + 1.414
+                    temp_g_score = g_score[current] + 1.414 # weight for diagonals included
                 else:
                     temp_g_score = g_score[current] + 1
 
@@ -537,10 +536,13 @@ def redraw_window(win, board, event_list, time, display_count, run_button, maze_
 if __name__ == "__main__":
     width = 800
     height = 920
-    rows = 25
-    cols = 25
+    board_range = [4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 80, 100, 160]
+    num = 6
+    rows = board_range[num]
+    cols = board_range[num]
+    clock = pygame.time.Clock()
     win = pygame.display.set_mode((width, height))
-    pygame.display.set_caption("A* Search")
+    pygame.display.set_caption("Algorithm Visualization")
     board = Grid(rows, cols, width, width, win)
     run = True
     start = None
@@ -567,7 +569,7 @@ if __name__ == "__main__":
     display_count = -1
 
     while run:
-        
+
         event_list = pygame.event.get()
         for event in event_list:
             if event.type == pygame.QUIT:
@@ -579,6 +581,20 @@ if __name__ == "__main__":
                 
                 if event.key == pygame.K_DELETE:
                     board.clear()
+
+                if event.key == pygame.K_MINUS:
+                    if num > 0:
+                        num = num - 1
+                        rows = board_range[num]
+                        cols = board_range[num]
+                        board = Grid(rows, cols, width, width, win)
+                
+                if event.key == pygame.K_EQUALS:
+                    if num < len(board_range)-1:
+                        num = num + 1
+                        rows = board_range[num]
+                        cols = board_range[num]
+                        board = Grid(rows, cols, width, width, win)
 
                 if event.key == pygame.K_SPACE:
                     start = time.perf_counter()
@@ -636,5 +652,6 @@ if __name__ == "__main__":
         # Draw Board + Time
         redraw_window(win, board, event_list, play_time, display_count, run_button, maze_button, clear_button, steps_cb, diagonal_cb)
         pygame.display.update()
+        clock.tick(60)
 
 pygame.quit()
