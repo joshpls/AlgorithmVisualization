@@ -1,4 +1,6 @@
-# Path Finding Visualizor
+# ----------------------------
+#   Path Finding Visualizor
+# ----------------------------
 from queue import PriorityQueue
 import pygame
 import time
@@ -69,37 +71,108 @@ class Grid:
             for node in row:
                 if node.is_empty():
                     node.reset()
-                    
+    
+    # Add of Subtract nodes, start, end, and walls
     def select(self, row, col, add_node):
         current_node = self.nodes[row][col]
 
         if add_node:
             if current_node.is_empty():
                 if not self.start:
+                    # If start node is not set, set start node
                     current_node.make_start()
                     self.start = current_node
                 elif not self.end:
+                    # If end node is not set, set end node
                     current_node.make_end()
                     self.end = current_node
                 else:
+                    # if both start and end are set, make wall
                     current_node.make_wall()
         else:
+            # Remove node selected
             if not current_node.is_empty():
                 if current_node.is_start():
                     self.start = None
                 elif current_node.is_end():
                     self.end = None
                 current_node.reset()
-    
-    # Generate Maze from random start node
-    def generate_maze(self):
-        # Update Neighbors for all nodes
-        for row in self.nodes:
-            for node in row:
-                if not node.is_start() and not node.is_end():
-                    node.reset()
-                node.update_neighbors(self.nodes, False)
 
+    def column(self, grid, i):
+        return [row[i] for row in grid]
+    
+    def neighbor_walls(self, node):
+        x = node.get_pos()[0]
+        y = node.get_pos()[1]
+
+        if x+1 < self.rows -1:
+            if self.nodes[x+1][y].is_wall():
+                if x-1 > 0:
+                    if self.nodes[x-1][y].is_wall():
+                        return True
+        if y+1 < self.rows - 1:
+            if self.nodes[x][y+1].is_wall():
+                if y-1 > 0:
+                    if self.nodes[x][y-1].is_wall():
+                        return True
+    
+    def neighbor_hole(self, node):
+        x = node.get_pos()[0]
+        y = node.get_pos()[1]
+
+        if x+1 < self.rows -1:
+            if self.nodes[x+1][y].is_hole():
+                return True
+        if x-1 > 0:
+            if self.nodes[x-1][y].is_hole():
+                return True
+        if y+1 < self.rows - 1:
+            if self.nodes[x][y+1].is_hole():
+                return True
+        if y-1 > 0:
+            if self.nodes[x][y-1].is_hole():
+                return True
+    
+    # Maze Generation using Recursive Division
+    def recursive_maze(self, grid, show_steps):
+        total_rows = len(grid[0])
+
+        middle = int( total_rows / 2)
+        
+        count = 0
+        middle_col = self.column(grid, middle)
+
+        rand = -1
+        while rand == int(len(middle_col)/2) or rand == -1:
+            rand = random.randint(0, len(middle_col)-1)
+            if self.neighbor_walls(middle_col[rand]):
+                rand = -1
+
+        for node in middle_col:
+            if count != rand:
+                if not self.neighbor_walls(node) and not self.neighbor_hole(node):
+                    if not node.is_start() and not node.is_end():
+                        node.make_wall()
+                        if show_steps:
+                            self.draw_grid()
+            count+=1
+        
+        middle_col[rand].make_hole()
+        
+        half1 = []
+        half2 = []
+        for i in range(total_rows):
+            if i > middle:
+                half1.append(self.column(grid, i))
+            elif i < middle:
+                half2.append(self.column(grid, i))
+        
+        if len(half1) > 2:
+            self.recursive_maze(half1, show_steps)
+        if len(half2) > 2:
+            self.recursive_maze(half2, show_steps)
+
+    def dfs_maze(self, show_steps):
         x = random.randint(0, (len(self.nodes)-1))
         y = random.randint(0, (len(self.nodes)-1))
         random_start = self.nodes[y][x]
@@ -149,6 +222,20 @@ class Grid:
             # Update the grid
             if show_steps:
                 self.draw_grid()
+
+    # Generate Maze from random start node
+    def generate_maze(self, show_steps, recursive):
+        # Update Neighbors for all nodes
+        for row in self.nodes:
+            for node in row:
+                if not node.is_start() and not node.is_end():
+                    node.reset()
+                node.update_neighbors(self.nodes, False)
+        
+        if recursive:
+            self.recursive_maze(self.nodes, show_steps)
+        else:
+            self.dfs_maze(show_steps)
         
         return False
 
@@ -248,6 +335,7 @@ class Grid:
 
         open_set_hash = {start_node}
 
+        # While open set is not empty, loop through
         while not open_set.empty():
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -268,7 +356,7 @@ class Grid:
             
             for neighbor in current.neighbors:
                 if (diagonal):
-                    temp_g_score = g_score[current] + 1.414 # weight for diagonals included
+                    temp_g_score = g_score[current] + 1.414 # weight for diagonals
                 else:
                     temp_g_score = g_score[current] + 1
 
@@ -344,6 +432,8 @@ class Grid:
         return max(dy, dx)
 
     def h(self, p1, p2, diagonal):
+        # Manhattan Distanace is used for cardinal movement for calculating the distance between 2 nodes
+        # While Chebyshev is used instead when diagonal movement is added
         if diagonal:
             return self.chebyshev(p1, p2)
         else:
@@ -417,6 +507,7 @@ class Node:
         self.start = False
         self.end = False
         self.visited = False
+        self.hole = False
 
     def get_pos(self):
         return self.row, self.col
@@ -439,6 +530,9 @@ class Node:
     def is_end(self):
         return self.color == self.ORANGE
     
+    def is_hole(self):
+        return self.hole
+    
     def is_empty(self):
         if self.color == self.WHITE or self.color == self.GREEN or self.color == self.RED or self.color == self.PURPLE:
             return True
@@ -449,6 +543,7 @@ class Node:
         self.wall = False
         self.visited = False
         self.color = self.WHITE
+        self.hole = False
     
     def make_visited(self):
         self.visited = True
@@ -474,6 +569,9 @@ class Node:
 
     def make_path(self):
         self.color = self.PURPLE
+
+    def make_hole(self):
+        self.hole = True
 
     def draw(self):
         pygame.draw.rect(self.win, self.color, (self.x, self.y, self.width, self.width))
@@ -508,7 +606,7 @@ class Node:
     def __lt__(self,other):
         return False
 
-def redraw_window(win, board, event_list, time, display_count, run_button, maze_button, clear_button, steps_cb, diagonal_cb):
+def redraw_window(win, board, event_list, time, display_count, run_button, maze_button, clear_button, steps_cb, diagonal_cb, random_maze_cb):
     # Draw time
     if time != None:
         fnt = pygame.font.SysFont("cambria", 35)
@@ -532,6 +630,7 @@ def redraw_window(win, board, event_list, time, display_count, run_button, maze_
     # Draw Checkboxes
     steps_cb.draw(event_list)
     diagonal_cb.draw(event_list)
+    random_maze_cb.draw(event_list)
 
 if __name__ == "__main__":
     width = 800
@@ -546,7 +645,7 @@ if __name__ == "__main__":
     board = Grid(rows, cols, width, width, win)
     run = True
     start = None
-    play_time = None
+    play_time = None 
     font = pygame.font.SysFont("cambria", 35)
     small_font = pygame.font.SysFont("cambria", 20)
     tiny_font = pygame.font.SysFont("cambria", 17)
@@ -555,6 +654,7 @@ if __name__ == "__main__":
     clear_button = Gui.Button("Clear All", 120, 25, (325,885),win,small_font)
     steps_cb = Gui.Checkbox("Steps:", 18, 18, (172,808),win,tiny_font, 6, True)
     diagonal_cb = Gui.Checkbox("Diagonal:", 18, 18, (145,828),win,tiny_font, 6, False)
+    random_maze_cb = Gui.Checkbox("Recursive:", 18, 18, (136,848),win,tiny_font, 6, True)
     WHITE = (255, 255, 255)
     list1 = Gui.DropDown(
         [(WHITE), (0,50,255)],
@@ -567,6 +667,7 @@ if __name__ == "__main__":
     show_steps = False
     algorithm = -1
     display_count = -1
+    recursive_maze = True
 
     while run:
 
@@ -629,7 +730,7 @@ if __name__ == "__main__":
         
         # Generate Maze
         if maze_button.check_pressed():
-            board.generate_maze()
+            board.generate_maze(show_steps, recursive_maze)
         
         # Clear Board
         if clear_button.check_pressed():
@@ -645,12 +746,17 @@ if __name__ == "__main__":
             diagonal_movement = True
         else:
             diagonal_movement = False
+        
+        if random_maze_cb.is_checked():
+            recursive_maze = True
+        else:
+            recursive_maze = False
 
         win.fill(WHITE, ((5, 810), (130, 300)))
         list1.draw(win)
         
         # Draw Board + Time
-        redraw_window(win, board, event_list, play_time, display_count, run_button, maze_button, clear_button, steps_cb, diagonal_cb)
+        redraw_window(win, board, event_list, play_time, display_count, run_button, maze_button, clear_button, steps_cb, diagonal_cb, random_maze_cb)
         pygame.display.update()
         clock.tick(60)
 
